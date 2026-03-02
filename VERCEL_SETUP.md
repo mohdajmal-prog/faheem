@@ -6,7 +6,7 @@
 - **Project Name**: cafe-f
 - **Framework**: Other (Node.js)
 - **Root Directory**: `./backend` (for backend deployment)
-- **Build Command**: `npm install`
+- **Build Command**: `npm run build`
 - **Output Directory**: `.`
 - **Install Command**: `npm install`
 
