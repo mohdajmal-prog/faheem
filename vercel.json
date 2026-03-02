@@ -1,16 +1,17 @@
 {
   "version": 2,
-  "builds": [
+  "projects": [
     {
-      "src": "backend/server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
+      "name": "cafe-backend",
+      "rootDirectory": "backend"
+    },
     {
-      "src": "/(.*)",
-      "dest": "backend/server.js"
+      "name": "cafe-frontend",
+      "rootDirectory": "cafe"
+    },
+    {
+      "name": "cafe-admin",
+      "rootDirectory": "cafe_admin"
     }
-  ],
-  "outputDirectory": "backend"
+  ]
 }

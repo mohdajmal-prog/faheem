@@ -11,11 +11,5 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ],
-  "env": {
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_SERVICE_KEY": "@supabase_service_key",
-    "JWT_SECRET": "@jwt_secret",
-    "FIREBASE_PROJECT_ID": "@firebase_project_id"
-  }
+  ]
 }
