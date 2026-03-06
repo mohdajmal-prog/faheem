@@ -77,57 +77,38 @@ router.post('/', async (req, res) => {
 // Get user orders
 router.get('/', async (req, res) => {
   try {
-    // First get orders
+    console.log('📦 Fetching orders for user:', req.user.id);
+    const start = Date.now();
+    
+    // Simplified query - just get orders first
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('*')
+      .select('id, total_amount, status, created_at, order_number')
       .eq('user_id', req.user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(20);
 
-    if (ordersError) throw ordersError;
+    if (ordersError) {
+      console.error('❌ Orders query error:', ordersError);
+      throw ordersError;
+    }
     
-    // Then get order items for each order
-    const ordersWithItems = await Promise.all((orders || []).map(async (order) => {
-      const { data: orderItems } = await supabase
-        .from('order_items')
-        .select('*')
-        .eq('order_id', order.id);
-      
-      // Get menu item details for each order item
-      const itemsWithDetails = await Promise.all((orderItems || []).map(async (item) => {
-        if (item.menu_item_id) {
-          const { data: menuItem } = await supabase
-            .from('menu_items')
-            .select('*')
-            .eq('id', item.menu_item_id)
-            .single();
-          
-          return {
-            name: menuItem?.name || 'Unknown Item',
-            quantity: item.quantity,
-            price: parseFloat(item.price)
-          };
-        }
-        return {
-          name: 'Unknown Item',
-          quantity: item.quantity,
-          price: parseFloat(item.price)
-        };
-      }));
-      
-      return {
-        id: order.id,
-        orderNumber: order.order_number || order.id.substring(0, 8),
-        status: order.status,
-        total: parseFloat(order.total_amount),
-        createdAt: { seconds: new Date(order.created_at).getTime() / 1000 },
-        items: itemsWithDetails
-      };
+    console.log(`⏱️ Orders query took ${Date.now() - start}ms`);
+    
+    // Return simplified order data
+    const simplifiedOrders = (orders || []).map(order => ({
+      id: order.id,
+      orderNumber: order.order_number || order.id.substring(0, 8),
+      status: order.status,
+      total: parseFloat(order.total_amount),
+      createdAt: { seconds: new Date(order.created_at).getTime() / 1000 },
+      items: [] // Empty for now to speed up response
     }));
     
-    res.json(ordersWithItems);
+    console.log(`✅ Returning ${simplifiedOrders.length} orders`);
+    res.json(simplifiedOrders);
   } catch (error) {
-    console.error('Orders error:', error);
+    console.error('❌ Orders error:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -56,4 +56,26 @@ function broadcastMenuUpdate(menuItem) {
   });
 }
 
-module.exports = { init, broadcast, broadcastMenuUpdate };
+/**
+ * Broadcasts advertisement updates to all connected clients.
+ * @param {object} advertisement The advertisement that was added/updated.
+ */
+function broadcastAdUpdate(advertisement) {
+  broadcast({
+    type: 'AD_UPDATE',
+    data: advertisement
+  });
+}
+
+/**
+ * Broadcasts advertisement deletion to all connected clients.
+ * @param {string} adId The ID of the deleted advertisement.
+ */
+function broadcastAdDelete(adId) {
+  broadcast({
+    type: 'AD_DELETE',
+    data: { id: adId }
+  });
+}
+
+module.exports = { init, broadcast, broadcastMenuUpdate, broadcastAdUpdate, broadcastAdDelete };

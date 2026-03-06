@@ -9,6 +9,10 @@ const app = express();
 const PORT = process.env.PORT || 3006;
 
 console.log('✅ Connected to Supabase');
+console.log('🔐 Environment Check:');
+console.log('   JWT_SECRET:', process.env.JWT_SECRET ? '✅ SET' : '❌ NOT SET (using default)');
+console.log('   JWT_SECRET length:', process.env.JWT_SECRET?.length || 'N/A');
+console.log('   PORT:', PORT);
 
 // Middleware
 app.use(cors());
@@ -26,6 +30,19 @@ app.use('/orders', authMiddleware, require('./routes/orders'));
 app.use('/user', authMiddleware, require('./routes/user'));
 app.use('/admin', authMiddleware, adminMiddleware, require('./routes/admin'));
 app.use('/pause', require('./routes/pause'));
+app.use('/api', require('./routes/advertisements'));
+app.use('/student', require('./routes/student'));
+
+// Debug endpoint to test authentication
+app.get('/debug/token-info', authMiddleware, (req, res) => {
+  res.json({
+    message: 'Token is valid!',
+    userId: req.user?.id,
+    userName: req.user?.name,
+    userEmail: req.user?.email,
+    userPhone: req.user?.phone,
+  });
+});
 
 // Health check
 app.get('/', (req, res) => {
@@ -57,7 +74,8 @@ const server = http.createServer(app);
 websocketService.init(server);
 
 server.listen(PORT, '0.0.0.0', () => {
+  const localIp = getLocalIp();
   console.log(`\n✅ Server running on http://localhost:${PORT}`);
-  console.log(`📱 Connect app to: http://${getLocalIp()}:${PORT}`);
+  console.log(`📱 Connect app to: http://${localIp}:${PORT}`);
   console.log('🔥 Supabase connected\n');
 });

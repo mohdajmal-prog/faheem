@@ -225,4 +225,90 @@ router.get('/orders/:orderId/bill', async (req, res) => {
   }
 });
 
+// Advertisement management endpoints
+// Get all advertisements
+router.get('/advertisements', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('advertisements')
+      .select('*')
+      .order('priority', { ascending: true });
+
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create advertisement
+router.post('/advertisements', async (req, res) => {
+  try {
+    const { title, description, image_url, gradient_colors, text_color, is_active, priority } = req.body;
+    
+    const { data, error } = await supabase
+      .from('advertisements')
+      .insert({
+        title,
+        description,
+        image_url,
+        gradient_colors: gradient_colors || ["#8B4513", "#D4A574"],
+        text_color: text_color || '#FFFFFF',
+        is_active: is_active !== undefined ? is_active : true,
+        priority: priority || 0
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    // Broadcast to all users
+    websocketService.broadcastAdUpdate(data);
+    
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update advertisement
+router.patch('/advertisements/:id', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('advertisements')
+      .update({ ...req.body, updated_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    // Broadcast to all users
+    websocketService.broadcastAdUpdate(data);
+    
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete advertisement
+router.delete('/advertisements/:id', async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('advertisements')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    
+    // Broadcast deletion to all users
+    websocketService.broadcastAdDelete(req.params.id);
+    
+    res.json({ message: 'Advertisement deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

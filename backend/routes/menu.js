@@ -5,13 +5,21 @@ const supabase = require('../config/supabase');
 // Get all menu items
 router.get('/', async (req, res) => {
   try {
+    console.log('📋 Fetching menu items...');
+    const start = Date.now();
+    
     const { data, error } = await supabase
       .from('menu_items')
-      .select('*')
+      .select('id, name, description, price, category, image_url, available')
       .eq('available', true)
-      .order('created_at', { ascending: false });
+      .limit(50);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Menu query error:', error);
+      throw error;
+    }
+    
+    console.log(`⏱️ Query took ${Date.now() - start}ms`);
     
     // Transform to match frontend format
     const items = (data || []).map(item => ({
@@ -28,9 +36,10 @@ router.get('/', async (req, res) => {
       available: item.available
     }));
     
+    console.log(`✅ Returning ${items.length} items`);
     res.json(items);
   } catch (error) {
-    console.error('Menu error:', error);
+    console.error('❌ Menu error:', error);
     res.status(500).json({ error: error.message });
   }
 });

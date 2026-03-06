@@ -8,7 +8,7 @@ router.get('/', async (req, res) => {
     const { data, error } = await supabase
       .from('app_settings')
       .select('*')
-      .eq('key', 'pause_state')
+      .limit(1)
       .maybeSingle();
 
     if (error) {
@@ -30,7 +30,12 @@ router.get('/', async (req, res) => {
       });
     }
 
-    res.json(data.value);
+    res.json({
+      is_app_paused: data.paused || false,
+      pause_reason: '',
+      paused_at: null,
+      resumed_at: null
+    });
   } catch (error) {
     console.error('Pause state error:', error);
     res.json({
@@ -45,28 +50,23 @@ router.get('/', async (req, res) => {
 // Set pause state
 router.put('/', async (req, res) => {
   try {
-    const { is_app_paused, pause_reason } = req.body;
-
-    const value = {
-      is_app_paused,
-      pause_reason: pause_reason || '',
-      paused_at: is_app_paused ? new Date().toISOString() : null,
-      resumed_at: !is_app_paused ? new Date().toISOString() : null,
-      admin_id: req.user.id
-    };
+    const { is_app_paused } = req.body;
 
     const { data, error } = await supabase
       .from('app_settings')
-      .upsert({
-        key: 'pause_state',
-        value
-      })
+      .update({ paused: is_app_paused })
+      .eq('id', 1)
       .select()
       .single();
 
     if (error) throw error;
 
-    res.json(data.value);
+    res.json({
+      is_app_paused: data.paused,
+      pause_reason: '',
+      paused_at: null,
+      resumed_at: null
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
