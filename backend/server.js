@@ -30,7 +30,7 @@ app.use('/orders', authMiddleware, require('./routes/orders'));
 app.use('/user', authMiddleware, require('./routes/user'));
 app.use('/admin', authMiddleware, adminMiddleware, require('./routes/admin'));
 app.use('/pause', require('./routes/pause'));
-app.use('/api', require('./routes/advertisements'));
+app.use('/advertisements', require('./routes/advertisements'));
 app.use('/student', require('./routes/student'));
 
 // Debug endpoint to test authentication
