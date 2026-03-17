@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const supabase = require('../config/supabase');
+const { supabase } = require('../config/supabase');
 
 // Create order
 router.post('/', async (req, res) => {
   try {
-    console.log('📦 Create order request:', JSON.stringify(req.body));
-    console.log('👤 User:', req.user);
+    console.log('[ORDER] Create order request:', JSON.stringify(req.body));
+    console.log('[USER] User:', req.user);
     
     const { items, totalAmount, deliveryAddress, phone } = req.body;
 
@@ -32,11 +32,11 @@ router.post('/', async (req, res) => {
       .single();
 
     if (orderError) {
-      console.error('❌ Order creation error:', orderError);
+      console.error('[ERROR] Order creation error:', orderError);
       throw orderError;
     }
 
-    console.log('✅ Order created:', order.id);
+    console.log('[SUCCESS] Order created:', order.id);
 
     // Check if menu items exist in database, if not skip order_items insertion
     const orderItems = items.map(item => ({
@@ -52,10 +52,10 @@ router.post('/', async (req, res) => {
       .insert(orderItems);
 
     if (itemsError) {
-      console.warn('⚠️ Order items insertion warning:', itemsError.message);
+      console.warn('[WARN] Order items insertion warning:', itemsError.message);
       // Don't throw error, just log it - order is still created
     } else {
-      console.log('✅ Order items added');
+      console.log('[SUCCESS] Order items added');
     }
 
     // Return order with items data embedded
@@ -69,7 +69,7 @@ router.post('/', async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error('❌ Create order error:', error);
+    console.error('[ERROR] Create order error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -77,38 +77,46 @@ router.post('/', async (req, res) => {
 // Get user orders
 router.get('/', async (req, res) => {
   try {
-    console.log('📦 Fetching orders for user:', req.user.id);
+    console.log('[ORDERS] Fetching orders for user:', req.user.id);
+    console.log('[ORDERS] User details:', { id: req.user.id, name: req.user.name, phone: req.user.phone });
     const start = Date.now();
     
-    // Simplified query - just get orders first
+    // Get all orders for the user, including completed ones
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id, total_amount, status, created_at, order_number')
+      .select('id, total_amount, status, created_at, updated_at, order_number')
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false })
-      .limit(20);
+      .limit(50);
 
     if (ordersError) {
-      console.error('❌ Orders query error:', ordersError);
+      console.error('[ERROR] Orders query error:', ordersError);
       throw ordersError;
     }
     
-    console.log(`⏱️ Orders query took ${Date.now() - start}ms`);
+    console.log(`[TIMER] Orders query took ${Date.now() - start}ms`);
+    console.log(`[DATA] Raw orders found: ${orders?.length || 0}`);
     
-    // Return simplified order data
-    const simplifiedOrders = (orders || []).map(order => ({
+    if (orders && orders.length > 0) {
+      console.log('[SAMPLE] Sample order:', orders[0]);
+    }
+    
+    // Return orders with proper status mapping
+    const formattedOrders = (orders || []).map(order => ({
       id: order.id,
       orderNumber: order.order_number || order.id.substring(0, 8),
       status: order.status,
       total: parseFloat(order.total_amount),
       createdAt: { seconds: new Date(order.created_at).getTime() / 1000 },
+      updatedAt: order.updated_at ? { seconds: new Date(order.updated_at).getTime() / 1000 } : null,
+      completedAt: order.status === 'completed' ? { seconds: new Date(order.updated_at).getTime() / 1000 } : null,
       items: [] // Empty for now to speed up response
     }));
     
-    console.log(`✅ Returning ${simplifiedOrders.length} orders`);
-    res.json(simplifiedOrders);
+    console.log(`[SUCCESS] Returning ${formattedOrders.length} formatted orders`);
+    res.json(formattedOrders);
   } catch (error) {
-    console.error('❌ Orders error:', error);
+    console.error('[ERROR] Orders error:', error);
     res.status(500).json({ error: error.message });
   }
 });

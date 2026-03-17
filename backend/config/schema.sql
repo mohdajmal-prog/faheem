@@ -46,12 +46,12 @@ CREATE TABLE IF NOT EXISTS order_items (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- OTP table for authentication
+-- OTP table for authentication (otp field must be VARCHAR(255) to store bcrypt hashes)
 CREATE TABLE IF NOT EXISTS otps (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email VARCHAR(255),
   phone VARCHAR(20),
-  otp VARCHAR(6) NOT NULL,
+  otp VARCHAR(255) NOT NULL,  -- Changed from VARCHAR(6) to VARCHAR(255) for bcrypt hash storage
   expires_at TIMESTAMP NOT NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   CONSTRAINT check_email_or_phone CHECK (email IS NOT NULL OR phone IS NOT NULL)

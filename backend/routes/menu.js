@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const supabase = require('../config/supabase');
+const { supabase } = require('../config/supabase');
 
 // Get all menu items
 router.get('/', async (req, res) => {
@@ -8,11 +8,18 @@ router.get('/', async (req, res) => {
     console.log('📋 Fetching menu items...');
     const start = Date.now();
     
-    const { data, error } = await supabase
+    // Add timeout to prevent hanging requests
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('TimeoutError: The operation was aborted due to timeout')), 8000);
+    });
+    
+    const queryPromise = supabase
       .from('menu_items')
       .select('id, name, description, price, category, image_url, available')
       .eq('available', true)
       .limit(50);
+    
+    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
     if (error) {
       console.error('❌ Menu query error:', error);

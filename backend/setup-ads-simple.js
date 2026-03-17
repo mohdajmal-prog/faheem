@@ -1,20 +1,32 @@
-const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+const supabase = require('./config/supabase');
 
 async function setupAdvertisements() {
+  console.log('🎯 Setting up advertisements...');
+  
   try {
-    console.log('🚀 Setting up advertisements table...');
+    // Check if advertisements exist
+    const { data: existing, error: checkError } = await supabase
+      .from('advertisements')
+      .select('*')
+      .limit(1);
     
-    // Insert default advertisements directly
-    const defaultAds = [
+    if (checkError) {
+      console.error('❌ Table check error:', checkError);
+      return;
+    }
+    
+    if (existing && existing.length > 0) {
+      console.log('✅ Advertisements table already has data');
+      console.log(`📊 Found ${existing.length} advertisements`);
+      return;
+    }
+    
+    // Insert sample advertisements
+    const sampleAds = [
       {
         title: 'Welcome to Ambis Cafe',
-        description: 'Enjoy fresh coffee and delicious snacks daily!',
+        description: 'Enjoy fresh coffee and delicious snacks',
         gradient_colors: ['#8B4513', '#D4A574'],
         text_color: '#FFFFFF',
         is_active: true,
@@ -22,58 +34,36 @@ async function setupAdvertisements() {
       },
       {
         title: 'Special Offer',
-        description: 'Get 20% off on all beverages this week!',
-        image_url: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800',
-        gradient_colors: ['#D4A574', '#F5E6D3'],
-        text_color: '#2C1810',
+        description: 'Get 20% off on your first order',
+        gradient_colors: ['#FF6B6B', '#FF8E53'],
+        text_color: '#FFFFFF',
         is_active: true,
         priority: 2
+      },
+      {
+        title: 'Fresh Daily',
+        description: 'Made with love, served with care',
+        gradient_colors: ['#4ECDC4', '#44A08D'],
+        text_color: '#FFFFFF',
+        is_active: true,
+        priority: 3
       }
     ];
-
-    // Check if table exists by trying to select
-    const { data: existingAds, error: selectError } = await supabase
+    
+    const { data, error } = await supabase
       .from('advertisements')
-      .select('id')
-      .limit(1);
-
-    if (selectError && selectError.code === 'PGRST116') {
-      console.log('❌ Table does not exist. Please create it manually in Supabase dashboard.');
-      console.log('Run this SQL in your Supabase SQL editor:');
-      console.log(`
-CREATE TABLE advertisements (
-  id SERIAL PRIMARY KEY,
-  title VARCHAR(255) NOT NULL,
-  description TEXT,
-  image_url TEXT,
-  gradient_colors JSONB DEFAULT '["#8B4513", "#D4A574"]',
-  text_color VARCHAR(7) DEFAULT '#FFFFFF',
-  is_active BOOLEAN DEFAULT true,
-  priority INTEGER DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX idx_advertisements_active_priority ON advertisements(is_active, priority);
-      `);
-      return;
-    }
-
-    // Insert default ads if table exists
-    const { error: insertError } = await supabase
-      .from('advertisements')
-      .upsert(defaultAds, { onConflict: 'title' });
-
-    if (insertError) {
-      console.log('ℹ️ Default ads setup:', insertError.message);
+      .insert(sampleAds)
+      .select();
+    
+    if (error) {
+      console.error('❌ Insert error:', error);
     } else {
-      console.log('✅ Default advertisements ready');
+      console.log('✅ Sample advertisements inserted');
+      console.log(`📊 Created ${data.length} advertisements`);
     }
-
-    console.log('🎉 Advertisements setup complete!');
     
   } catch (error) {
-    console.error('❌ Setup failed:', error);
+    console.error('❌ Setup error:', error);
   }
 }
 

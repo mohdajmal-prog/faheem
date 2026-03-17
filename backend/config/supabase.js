@@ -17,10 +17,18 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
       const [url, options = {}] = args;
       return fetch(url, {
         ...options,
-        signal: AbortSignal.timeout(30000) // 30 second timeout
+        signal: AbortSignal.timeout(10000) // 10 second timeout
       });
+    }
+  },
+  db: {
+    schema: 'public'
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
     }
   }
 });
 
-module.exports = supabase;
+module.exports = { supabase };
