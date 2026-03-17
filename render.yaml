@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ambis-cafe-backend
+    env: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /
+    
+databases:
+  - name: ambis-cafe-db
+    databaseName: ambis_cafe
+    user: ambis_user
+
+# Environment variables that need to be set in Render dashboard:
+# SUPABASE_URL
+# SUPABASE_SERVICE_KEY  
+# JWT_SECRET
+# RAZORPAY_KEY_ID
+# RAZORPAY_KEY_SECRET
+# RAZORPAY_PAYMENT_LINK

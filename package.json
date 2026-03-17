@@ -1,13 +1,26 @@
 {
+  "name": "ambis-cafe-system",
+  "version": "1.0.0",
+  "description": "Complete food ordering system with React Native mobile apps and Node.js backend",
+  "main": "backend/server.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "scripts": {
     "dev:frontend": "cd cafe && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "dev": "cross-env METRO_CACHE_DIR=D:/metro_cache concurrently --kill-others-on-fail --names \"BACKEND,FRONTEND\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm:dev:backend\" \"npm:dev:frontend\"",
     "dev:frontend:tunnel": "cd cafe && npm run tunnel",
     "dev:tunnel": "cross-env METRO_CACHE_DIR=D:/metro_cache concurrently --kill-others-on-fail --names \"BACKEND,FRONTEND\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm:dev:backend\" \"npm:dev:frontend:tunnel\"",
-    "build": "cd backend && npm install",
+    "build": "cd backend && npm install && echo 'Backend build completed'",
+    "postinstall": "cd backend && npm install",
     "vercel-build": "cd backend && npm install",
-    "start": "cd backend && npm start"
+    "start": "cd backend && npm start",
+    "install:all": "npm install && cd backend && npm install && cd ../cafe && npm install && cd ../cafe_admin && npm install",
+    "setup": "npm run install:all",
+    "test": "echo 'No tests specified' && exit 0",
+    "lint": "echo 'No linting configured' && exit 0"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
@@ -16,5 +29,21 @@
   "dependencies": {
     "expo": "^49.0.23",
     "expo-firebase-recaptcha": "^1.4.4"
+  },
+  "keywords": [
+    "food-ordering",
+    "restaurant",
+    "react-native",
+    "nodejs",
+    "expo",
+    "supabase",
+    "razorpay",
+    "mobile-app"
+  ],
+  "author": "Ambis Cafe",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mohdajmal-prog/faheem.git"
   }
 }
