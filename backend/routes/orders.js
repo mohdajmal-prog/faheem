@@ -81,10 +81,10 @@ router.get('/', async (req, res) => {
     console.log('[ORDERS] User details:', { id: req.user.id, name: req.user.name, phone: req.user.phone });
     const start = Date.now();
     
-    // Get all orders for the user, including completed ones
+    // Get all orders for the user, including all statuses
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id, total_amount, status, created_at, updated_at, order_number')
+      .select('id, total_amount, status, payment_status, created_at, updated_at, order_number')
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false })
       .limit(50);
@@ -101,19 +101,49 @@ router.get('/', async (req, res) => {
       console.log('[SAMPLE] Sample order:', orders[0]);
     }
     
+    // Map actual statuses to expected statuses for the app
+    const mapOrderStatus = (status, paymentStatus) => {
+      // If payment is not completed, show as pending
+      if (paymentStatus !== 'paid') {
+        return 'pending';
+      }
+      
+      // Map actual statuses to app-expected statuses
+      switch (status) {
+        case 'pending':
+        case 'confirmed':
+        case 'approved':
+          return 'preparing'; // Show paid orders as being prepared
+        case 'paid':
+          return 'completed'; // Paid orders are completed
+        case 'denied':
+          return 'cancelled';
+        default:
+          return status; // Keep original status if it matches expected ones
+      }
+    };
+    
     // Return orders with proper status mapping
-    const formattedOrders = (orders || []).map(order => ({
-      id: order.id,
-      orderNumber: order.order_number || order.id.substring(0, 8),
-      status: order.status,
-      total: parseFloat(order.total_amount),
-      createdAt: { seconds: new Date(order.created_at).getTime() / 1000 },
-      updatedAt: order.updated_at ? { seconds: new Date(order.updated_at).getTime() / 1000 } : null,
-      completedAt: order.status === 'completed' ? { seconds: new Date(order.updated_at).getTime() / 1000 } : null,
-      items: [] // Empty for now to speed up response
-    }));
+    const formattedOrders = (orders || []).map(order => {
+      const mappedStatus = mapOrderStatus(order.status, order.payment_status);
+      return {
+        id: order.id,
+        orderNumber: order.order_number || order.id.substring(0, 8),
+        status: mappedStatus,
+        total: parseFloat(order.total_amount),
+        createdAt: { seconds: new Date(order.created_at).getTime() / 1000 },
+        updatedAt: order.updated_at ? { seconds: new Date(order.updated_at).getTime() / 1000 } : null,
+        completedAt: mappedStatus === 'completed' ? { seconds: new Date(order.updated_at || order.created_at).getTime() / 1000 } : null,
+        items: [] // Empty for now to speed up response
+      };
+    });
     
     console.log(`[SUCCESS] Returning ${formattedOrders.length} formatted orders`);
+    console.log('[STATUS_MAP] Status distribution:', formattedOrders.reduce((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {}));
+    
     res.json(formattedOrders);
   } catch (error) {
     console.error('[ERROR] Orders error:', error);

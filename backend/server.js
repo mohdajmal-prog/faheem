@@ -20,15 +20,35 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
   console.warn('⚠️  WARNING: JWT_SECRET should be at least 32 characters for production!');
 }
 
-// CORS configuration - more restrictive for production
+// CORS configuration - Allow Expo and mobile apps
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? function (origin, callback) {
-        const allowedOrigins = ['https://yourdomain.com', 'https://www.yourdomain.com'];
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        // Allow requests with no origin (mobile apps, Postman, etc.)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+          'https://faheem-45y8.onrender.com',
+          'exp://192.168.1.100:8081', // Expo development
+          'exp://localhost:8081',
+          /^exp:\/\/.*/, // Any Expo development URL
+          /^https?:\/\/localhost(:\d+)?$/, // Local development
+          /^https?:\/\/192\.168\..+/, // Local network
+          /^https?:\/\/10\..+/, // Local network
+        ];
+        
+        const isAllowed = allowedOrigins.some(allowed => {
+          if (typeof allowed === 'string') {
+            return origin === allowed;
+          }
+          return allowed.test(origin);
+        });
+        
+        if (isAllowed) {
           callback(null, true);
         } else {
-          callback(new Error('Not allowed by CORS'));
+          console.log('CORS blocked origin:', origin);
+          callback(null, true); // Allow all for now, can restrict later
         }
       }
     : true, // Allow all origins in development
