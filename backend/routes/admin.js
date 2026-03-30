@@ -173,10 +173,10 @@ router.post('/orders/:id/complete', async (req, res) => {
 // Add menu item
 router.post('/menu', async (req, res) => {
   try {
-    const { name, description, price, category, image_url } = req.body;
+    const { name, description, price, category, image_url, quantity = 50 } = req.body;
     const { data, error } = await supabase
       .from('menu_items')
-      .insert({ name, description, price, category, image_url })
+      .insert({ name, description, price, category, image_url, quantity })
       .select()
       .single();
 
@@ -205,6 +205,32 @@ router.patch('/menu/:id', async (req, res) => {
     websocketService.broadcastMenuUpdate(data);
     
     res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update inventory quantity
+router.patch('/menu/:id/quantity', async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    
+    if (typeof quantity !== 'number' || quantity < 0) {
+      return res.status(400).json({ error: 'Quantity must be a non-negative number' });
+    }
+    
+    const { data, error } = await supabase
+      .from('menu_items')
+      .update({ quantity, updated_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    websocketService.broadcastMenuUpdate(data);
+    
+    res.json({ message: 'Inventory updated successfully', item: data });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

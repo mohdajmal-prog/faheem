@@ -2,21 +2,105 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { supabase } = require('../config/supabase');
-const twilioService = require('../services/twilioService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
-// Generate random 6-digit OTP
-function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
 
 // Basic phone validation
 function isValidPhone(phone) {
   return phone && phone.length >= 10 && /^[+]?[0-9\s-()]+$/.test(phone);
 }
 
-// Send OTP
+// Simple login with phone number only (no OTP)
+router.post('/login', async (req, res) => {
+  try {
+    console.log('📱 Login request for phone:', req.body.phone?.replace(/\d(?=\d{4})/g, '*'));
+    const { phone, name } = req.body;
+    
+    if (!isValidPhone(phone)) {
+      return res.status(400).json({ error: 'Valid phone number required' });
+    }
+
+    // Normalize phone number
+    const normalizedPhone = phone.replace(/[^+0-9]/g, '');
+    const sanitizedName = name ? name.trim().substring(0, 100) : null;
+
+    console.log(`🔍 Looking for user with phone: ${normalizedPhone.replace(/\d(?=\d{4})/g, '*')}`);
+
+    // Check if user exists
+    const { data: userArray } = await supabase
+      .from('users')
+      .select('*')
+      .eq('phone', normalizedPhone);
+    let user = userArray && userArray.length > 0 ? userArray[0] : null;
+    console.log('👤 Existing user found:', !!user);
+
+    if (!user) {
+      console.log('👤 Creating new user...');
+      const userData = { 
+        name: sanitizedName || 'User',
+        phone: normalizedPhone,
+        email: `phone_${normalizedPhone.replace(/[^0-9]/g, '')}@temp.local`,
+        is_admin: false
+      };
+
+      const { data: newUserArray, error: userError } = await supabase
+        .from('users')
+        .insert(userData)
+        .select();
+      const newUser = newUserArray && newUserArray.length > 0 ? newUserArray[0] : null;
+
+      if (userError) {
+        console.error('❌ Error creating user:', userError);
+        throw userError;
+      }
+      user = newUser;
+      console.log('✅ New user created:', user.id);
+    } else if (sanitizedName && sanitizedName !== user.name) {
+      // Update existing user with new name if provided and different
+      console.log('👤 Updating existing user...');
+      const { data: updatedUserArray } = await supabase
+        .from('users')
+        .update({ name: sanitizedName })
+        .eq('id', user.id)
+        .select();
+      
+      user = updatedUserArray && updatedUserArray.length > 0 ? updatedUserArray[0] : user;
+      console.log('✅ User updated');
+    }
+
+    // Generate JWT
+    const tokenPayload = {
+      userId: user.id,
+      email: user.email,
+      phone: user.phone,
+      isAdmin: user.is_admin || false
+    };
+    
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { 
+      expiresIn: '7d',
+      issuer: 'cafe-app',
+      audience: 'cafe-users'
+    });
+    console.log('🎫 JWT token generated');
+
+    // Return user data without sensitive information
+    const safeUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      is_admin: user.is_admin || false,
+      created_at: user.created_at
+    };
+
+    res.json({ token, user: safeUser });
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
+// Keep legacy OTP endpoints for backward compatibility (but simplified)
 router.post('/send-otp', async (req, res) => {
   try {
     const { phone } = req.body;
@@ -25,52 +109,17 @@ router.post('/send-otp', async (req, res) => {
       return res.status(400).json({ error: 'Valid phone number required' });
     }
 
-    // Normalize phone number
-    const normalizedPhone = phone.replace(/[^+0-9]/g, '');
-    console.log(`📱 Sending OTP to: ${normalizedPhone.replace(/\d(?=\d{4})/g, '*')}`);
-
-    // Generate OTP
-    const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-    // Store OTP in database
-    const { error: otpError } = await supabase
-      .from('otps')
-      .upsert({
-        phone: normalizedPhone,
-        otp: otp,
-        expires_at: expiresAt.toISOString(),
-        created_at: new Date().toISOString()
-      }, {
-        onConflict: 'phone'
-      });
-
-    if (otpError) {
-      console.error('❌ Error storing OTP:', otpError);
-      throw otpError;
-    }
-
-    // Send OTP via Twilio
-    const smsResult = await twilioService.sendOTP(normalizedPhone, otp);
-    
-    if (smsResult.success) {
-      console.log('✅ OTP sent successfully');
-      res.json({ 
-        message: 'OTP sent successfully',
-        // Don't send OTP in production, only for development
-        ...(process.env.NODE_ENV === 'development' && { otp })
-      });
-    } else {
-      console.error('❌ Failed to send OTP:', smsResult.error);
-      res.status(500).json({ error: 'Failed to send OTP' });
-    }
+    // Just return success without actually sending OTP
+    res.json({ 
+      message: 'OTP sent successfully',
+      otp: '123456' // Fixed OTP for demo
+    });
   } catch (error) {
     console.error('❌ Send OTP error:', error);
     res.status(500).json({ error: 'Failed to send OTP' });
   }
 });
 
-// Verify OTP
 router.post('/verify-otp', async (req, res) => {
   try {
     const { phone, otp, name } = req.body;
@@ -79,35 +128,16 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ error: 'Valid phone number required' });
     }
 
+    // Accept any OTP for demo purposes
     if (!otp || otp.length !== 6) {
       return res.status(400).json({ error: 'Valid 6-digit OTP required' });
     }
 
     // Normalize phone number
     const normalizedPhone = phone.replace(/[^+0-9]/g, '');
-    console.log(`🔍 Verifying OTP for: ${normalizedPhone.replace(/\d(?=\d{4})/g, '*')}`);
-
-    // Check OTP in database
-    const { data: otpData, error: otpError } = await supabase
-      .from('otps')
-      .select('*')
-      .eq('phone', normalizedPhone)
-      .eq('otp', otp)
-      .gt('expires_at', new Date().toISOString())
-      .single();
-
-    if (otpError || !otpData) {
-      console.log('❌ Invalid or expired OTP');
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
-    }
-
-    // Delete used OTP
-    await supabase
-      .from('otps')
-      .delete()
-      .eq('phone', normalizedPhone);
-
     const sanitizedName = name ? name.trim().substring(0, 100) : null;
+
+    console.log(`🔍 Looking for user with phone: ${normalizedPhone.replace(/\d(?=\d{4})/g, '*')}`);
 
     // Check if user exists
     const { data: userArray } = await supabase

@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
     
     const queryPromise = supabase
       .from('menu_items')
-      .select('id, name, description, price, category, image_url, available')
+      .select('id, name, description, price, category, image_url, available, quantity')
       .eq('available', true)
       .limit(50);
     
@@ -40,7 +40,9 @@ router.get('/', async (req, res) => {
       reviews: 0,
       time: '5 min',
       discount: 0,
-      available: item.available
+      available: item.available,
+      quantity: item.quantity || 0,
+      inStock: (item.quantity || 0) > 0
     }));
     
     console.log(`✅ Returning ${items.length} items`);
