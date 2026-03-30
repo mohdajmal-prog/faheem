@@ -14,6 +14,26 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Items are required' });
     }
 
+    // Check inventory availability before creating order
+    for (const item of items) {
+      const { data: menuItem, error: menuError } = await supabase
+        .from('menu_items')
+        .select('quantity, name')
+        .eq('id', item.id)
+        .single();
+
+      if (menuError) {
+        console.warn('[WARN] Menu item not found:', item.id);
+        continue;
+      }
+
+      if (menuItem.quantity < item.quantity) {
+        return res.status(400).json({ 
+          error: `Insufficient stock for ${menuItem.name}. Available: ${menuItem.quantity}, Requested: ${item.quantity}` 
+        });
+      }
+    }
+
     // Calculate total from items if not provided
     const calculatedTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const total = totalAmount || calculatedTotal;
@@ -37,6 +57,37 @@ router.post('/', async (req, res) => {
     }
 
     console.log('[SUCCESS] Order created:', order.id);
+
+    // Deduct inventory quantities
+    for (const item of items) {
+      // Get current quantity first
+      const { data: currentItem, error: fetchError } = await supabase
+        .from('menu_items')
+        .select('quantity')
+        .eq('id', item.id)
+        .single();
+
+      if (fetchError) {
+        console.error('[ERROR] Failed to fetch current quantity:', fetchError);
+        continue;
+      }
+
+      // Calculate new quantity
+      const newQuantity = currentItem.quantity - item.quantity;
+      
+      // Update with new quantity
+      const { error: updateError } = await supabase
+        .from('menu_items')
+        .update({ quantity: newQuantity })
+        .eq('id', item.id);
+
+      if (updateError) {
+        console.error('[ERROR] Inventory update error:', updateError);
+        // Continue with order creation even if inventory update fails
+      } else {
+        console.log(`[INVENTORY] Deducted ${item.quantity} units from item ${item.id}. New quantity: ${newQuantity}`);
+      }
+    }
 
     // Check if menu items exist in database, if not skip order_items insertion
     const orderItems = items.map(item => ({
